@@ -8,13 +8,20 @@ contract SimpleAuction{
     //Custom Error
     error AuctionAlreadyEnded(uint currentTime, uint biddingTime);
     error NotEnoughBid(uint highestBid);
+    error AuctionNotEnded();
+    error AuctionEndAlreadyCalled();
+    OnlyBeneficiary(address beneficiary);
 
     address payable immutable i_beneficiary;
-    uint autionEndTime;
+    uint auctionEndTime;
 
     //State Variable that keeps record of the current highestBid and highestBidder
     uint highestBid;
     address highestBidder;
+
+    //Bollean to track the auction is ended.
+    bool ended;
+
 
     //Mapping
     //This keeps the record of all the overbidden bidder(that's the rest of the 
@@ -22,12 +29,17 @@ contract SimpleAuction{
     //be recorded in the state(highest bid and highest))
     mapping(address bidder => uint amount) pendingReturns;
 
+
+    //Event
+    event AuctionEnded(uint amount, address bidder);
+
+
     //Assigned during deploytime
     //Needs input of bindingTime and always in second.
     constructor(
         uint biddingTime
     ){
-        autionEndTime = block.timestamp + biddingTime;
+        auctionEndTime = block.timestamp + biddingTime;
         i_beneficiary = payable(msg.sender);
     }
 
@@ -37,7 +49,7 @@ contract SimpleAuction{
     function Bid() public payable {
 
         //Check if the time for bidding has elapsed
-        if(block.timestamp > autionEndTime){
+        if(block.timestamp > auctionEndTime){
             revert AuctionAlreadyEnded(block.timestamp, autionEndTime);
         }
 
@@ -91,6 +103,36 @@ contract SimpleAuction{
 
         //If all went well, then return false
         return true;
+    }
+
+    /**
+    * Function auctionEnd to be called by the only beneficiary(modifier OnlyBeneficiary) to transfer the 
+    * highestBid to his address
+    */
+    function auctionEnd() public OnlyBeneficiary {
+
+        //Check if the current time (block.timestamp) is less then the assigned auctionEndTime, if yes
+        //Revert the custom error
+        if(block.timestamp < auctionEndTime)revert AuctionNotEnded();
+
+        //Check if the ended variable of the type of bool returns true, then
+        //revert with the  custom error
+        if(ended) revert AuctionEndAlreadyCalled();
+
+        //If all the above is cleared, then change the default value of ended to true
+        ended = true;
+
+        //Then emit an event telling the blockcahin of the success of the transaction
+        emit AuctionEnded(highestBid, highestBidder);
+
+        //Then transfer the fund to the beneficiary
+        i_beneficiary.transfer(highestBid);
+
+    }
+
+    modifier OnlyBeneficiary{
+        if(msg.sender != i_beneficiary) revert OnlyBeneficiary(i_beneficiary);
+        _;
     }
 
 }
