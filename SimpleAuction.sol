@@ -61,8 +61,36 @@ contract SimpleAuction{
         highestBidder = msg.sender;
     }
 
-    // function Withdraw() public{
-        
-    // }
+    //Withdraw fundtion can be called by outbidden bidders
+    function Withdraw() public view returns (bool) {
+
+        //Get access to the value sent be the caller of the withdraw function,
+        //By going to the pendingReturns mapping with the the amount sent with 
+        //the help of the callers address. The func expect a resturn of boolean
+        //(true/false).
+        uint amount = pendingReturns[msg.sender];
+
+        //Check if the amount is graeter than zero, it yes
+        if(amount > 0){
+
+            //Then, make that update that address to be zero, since we are about to
+            //take the funds away(withdraw)
+            pendingReturns[msg.sender] = 0;
+
+            //Then check if the send transaction failed. if yes,
+            if(!payable(msg.sender).send(amount)){
+
+                //Then restor the address with the amount we wanted to withdraw
+                pendingReturns[msg.sender] = amount;
+
+                //finally return false, since the withdraw failed
+                return false;
+            }
+
+        }
+
+        //If all went well, then return false
+        return true;
+    }
 
 }
